@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NutriSmart 3.0</title>
+
+<style>
+body { font-family: Arial, sans-serif; margin: 20px; background:#f5f5f5; }
+.card { background:white; padding:15px; border-radius:10px; margin-bottom:15px; box-shadow:0 2px 5px rgba(0,0,0,0.1); }
+
+input, select, button {
+  width:100%;
+  padding:8px;
+  margin-top:5px;
+  margin-bottom:10px;
+  border-radius:6px;
+  border:1px solid #ccc;
+}
+
+button { background:#4CAF50; color:white; font-weight:bold; border:none; }
+button:hover { background:#43a047; }
+
+.barra-container {
+  width:100%;
+  background:#eee;
+  border-radius:10px;
+  overflow:hidden;
+  height:25px;
+  margin-top:10px;
+}
+
+.barra {
+  height:100%;
+  width:0%;
+  background:green;
+  transition:width 0.4s, background 0.4s;
+}
+
+.estado { font-weight:bold; margin-top:8px; font-size:18px; }
+.item { margin-bottom:6px; }
+.actions button { width:auto; padding:4px 8px; margin-left:5px; }
+ul { padding-left:20px; }
+</style>
+</head>
+
+<body>
+
+<h2>NutriSmart 3.0</h2>
+
+<div class="card">
+<label>Edad</label>
+<input type="number" id="edad" value="13">
+
+<label>Sexo</label>
+<select id="sexo">
+<option value="f">Femenino</option>
+<option value="m">Masculino</option>
+</select>
+
+<button onclick="calcularMeta()">Calcular meta</button>
+
+<h3>Meta diaria: <span id="meta">2200</span> kcal</h3>
+<h3>Consumido: <span id="consumido">0</span> kcal</h3>
+
+<div class="barra-container">
+<div id="barra" class="barra"></div>
+</div>
+
+<div id="estado" class="estado"></div>
+<div id="mensaje"></div>
+
+<button onclick="cerrarDia()">Cerrar día</button>
+</div>
+
+<div class="card">
+<label>Momento del día</label>
+<select id="momento">
+<option>Desayuno</option>
+<option>Media mañana</option>
+<option>Almuerzo</option>
+<option>Media tarde</option>
+<option>Cena</option>
+</select>
+
+<label>Alimento</label>
+<input id="alimento" placeholder="Ej: arroz">
+
+<label>Kcal</label>
+<input id="kcal" type="number" placeholder="Ej: 250">
+
+<button onclick="agregar()">Agregar alimento</button>
+</div>
+
+<div id="lista"></div>
+
+<div class="card">
+<h3>Historial semanal</h3>
+<ul id="historial"></ul>
+</div>
+
+<script>
+let metaCalorica = 2200;
+let total = 0;
+
+function calcularMeta() {
+  const edad = parseInt(document.getElementById("edad").value);
+  const sexo = document.getElementById("sexo").value;
+
+  if (sexo === "f") {
+    metaCalorica = edad <= 13 ? 2000 : 2100;
+  } else {
+    metaCalorica = edad <= 13 ? 2200 : 2500;
+  }
+
+  document.getElementById("meta").textContent = metaCalorica;
+  actualizar();
+}
+
+function agregar() {
+  const momento = document.getElementById("momento").value;
+  const alimento = document.getElementById("alimento").value;
+  const kcal = parseInt(document.getElementById("kcal").value);
+
+  if (!alimento || !kcal) return;
+
+  total += kcal;
+
+  const item = document.createElement("div");
+  item.className = "card item";
+  item.innerHTML = `
+    <strong>${momento}</strong><br>
+    <span class="texto">${alimento} — ${kcal} kcal</span>
+    <div class="actions">
+      <button onclick="editarItem(this)">✏️</button>
+      <button onclick="borrarItem(this, ${kcal})">🗑️</button>
+    </div>
+  `;
+
+  document.getElementById("lista").appendChild(item);
+
+  document.getElementById("alimento").value = "";
+  document.getElementById("kcal").value = "";
+
+  actualizar();
+}
+
+function borrarItem(btn, kcal) {
+  total -= kcal;
+  btn.closest(".item").remove();
+  actualizar();
+}
+
+function editarItem(btn) {
+  const item = btn.closest(".item");
+  const texto = item.querySelector(".texto").innerText;
+
+  const partes = texto.split("—");
+  const alimentoActual = partes[0].trim();
+  const kcalActual = parseInt(partes[1]);
+
+  const nuevoAlimento = prompt("Editar alimento:", alimentoActual);
+  const nuevaKcal = parseInt(prompt("Editar kcal:", kcalActual));
+
+  if (!nuevoAlimento || !nuevaKcal) return;
+
+  total += (nuevaKcal - kcalActual);
+
+  item.querySelector(".texto").innerText = `${nuevoAlimento} — ${nuevaKcal} kcal`;
+
+  actualizar();
+}
+
+function actualizar() {
+
+  document.getElementById("consumido").textContent = total;
+
+  const porcentaje = Math.min((total / metaCalorica) * 100, 100);
+  const barra = document.getElementById("barra");
+  barra.style.width = porcentaje + "%";
+
+  const estado = document.getElementById("estado");
+  const mensaje = document.getElementById("mensaje");
+  const diferencia = metaCalorica - total;
+
+  if (total < metaCalorica) {
+
+    const deficit = diferencia;
+
+    barra.style.background = "green";
+    estado.style.color = "green";
+    estado.textContent = "Déficit: " + deficit + " kcal";
+
+    if (deficit <= 100) {
+      mensaje.textContent = "Estás cerca de la meta. Aún puedes completar tu consumo con alimentos saludables.";
+    } 
+    else if (deficit <= 400) {
+      mensaje.textContent = "Tu consumo está por debajo de la meta diaria. Procura incluir alimentos nutritivos en lo que resta del día.";
+    } 
+    else {
+      mensaje.textContent = "El consumo es bajo para una meta diaria. Evita saltar comidas y mantén equilibrio nutricional.";
+    }
+
+  } 
+  else if (total === metaCalorica) {
+
+    barra.style.background = "orange";
+    estado.style.color = "orange";
+    estado.textContent = "Meta alcanzada";
+    mensaje.textContent = "Excelente equilibrio nutricional.";
+
+  } 
+  else {
+
+    const exceso = Math.abs(diferencia);
+    barra.style.background = "#cc0000";
+    estado.style.color = "red";
+    estado.textContent = "Exceso: " + exceso + " kcal";
+    mensaje.textContent = "Has superado la meta diaria. Observa tus elecciones y planifica mejor tu consumo mañana.";
+
+  }
+}
+
+function cerrarDia() {
+
+  const mensaje = document.getElementById("mensaje");
+  const porcentaje = (total / metaCalorica) * 100;
+
+  if (total === 0) {
+    mensaje.innerHTML = "<strong>No registraste alimentos hoy.</strong>";
+    return;
+  }
+
+  let estadoDia = "";
+
+  if (porcentaje >= 95 && porcentaje <= 105) {
+    estadoDia = "🟢 Equilibrado";
+  }
+  else if ((porcentaje >= 85 && porcentaje < 95) || (porcentaje > 105 && porcentaje <= 115)) {
+    estadoDia = "🟡 Mejorable";
+  }
+  else {
+    estadoDia = "🔴 Necesita planificación";
+  }
+
+  mensaje.innerHTML = "<strong>Evaluación del día:</strong> " + estadoDia;
+
+  const hoy = new Date().toLocaleDateString();
+
+  const registro = {
+    fecha: hoy,
+    total: total,
+    estado: estadoDia
+  };
+
+  let historial = JSON.parse(localStorage.getItem("nutrismartHistorial")) || [];
+  historial.push(registro);
+
+  if (historial.length > 7) {
+    historial.shift();
+  }
+
+  localStorage.setItem("nutrismartHistorial", JSON.stringify(historial));
+
+  mostrarHistorial();
+}
+
+function mostrarHistorial() {
+
+  const lista = document.getElementById("historial");
+  lista.innerHTML = "";
+
+  let historial = JSON.parse(localStorage.getItem("nutrismartHistorial")) || [];
+
+  historial.forEach(dia => {
+    const item = document.createElement("li");
+    item.textContent = dia.fecha + " — " + dia.total + " kcal — " + dia.estado;
+    lista.appendChild(item);
+  });
+}
+
+mostrarHistorial();
+</script>
+
+</body>
+</html>
